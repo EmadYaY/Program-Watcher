@@ -22,7 +22,7 @@ RESET = Fore.RESET
 # ------------------------------------BASE - CONFIGS----------------------------------------------#
 
 config = configparser.ConfigParser()
-config.read('E:\[+] HUNTIG COURSE YASHAR\Watchers\Program Watcher\config.ini')
+config.read('/root/.Watcher/config.ini')
 
 DISCORD_WEBHOOK = config['DISCORD']['WEBHOOK']
 CHECK_HACKERONE = config['PLATFORMS']['HACKERONE']
@@ -44,6 +44,7 @@ BASE_DB_PATH = config["DB"]["BASE_DB_PATH"]
 # ------------------------------------PERFORMANCE - CONFIGS----------------------------------------------#
 
 PRINTING = config["PERFORMANCE"]["PRINT"]
+OS = config["PERFORMANCE"]["OS"]
 
 # ------------------------------------VARIABLES----------------------------------------------#
 
@@ -803,10 +804,13 @@ def progress(msg):
         print(random.choice(backs) + random.choice(colors) +
               f" {run_msg} " + Back.RESET + RESET)
         time.sleep(0.3)
-        os.system("cls")
+        if OS == "WINDOWS":
+            os.system("cls")
+        elif OS == "LINUX":
+            os.system("clear")
 
 
-def main(checkdb):
+def main(checkdb=True):
     if PRINTING == "True":
         enablePrint()
         progress(msg="Running Watcher ")
@@ -825,9 +829,4 @@ def main(checkdb):
         parser(yeswehack())
 
 
-check_db = True
-while True:
-    main(checkdb=check_db)
-    check_db = False
-    print(" SLEEP START ")
-    time.sleep(3600)
+main()
