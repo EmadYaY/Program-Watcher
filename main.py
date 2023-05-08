@@ -29,6 +29,7 @@ CHECK_HACKERONE = config['PLATFORMS']['HACKERONE']
 CHECK_BUGCROWD = config['PLATFORMS']['BUGCROWD']
 CHECK_INTIGRITI = config['PLATFORMS']['INTIGRITI']
 CHECK_YESWEHACK = config['PLATFORMS']['YESWEHACK']
+SEND_NOTIFICATION = config["PERFORMANCE"]["SEND_NOTIFICATION"]
 
 # ------------------------------------TITLES - CONFIGS----------------------------------------------#
 
@@ -71,7 +72,7 @@ def hackerone():
         data = json.load(url)
 
     for target in data:
-        name = target["attributes"]["name"]
+        name = target["attributes"]["handle"]
         submit = target["attributes"]["submission_state"]
         allows_bounty_splitting = target["attributes"]["allows_bounty_splitting"]
         logo = target["attributes"]["profile_picture"]
@@ -106,7 +107,7 @@ def bugcrowd():
               "[+] Fetching -> BUGCROWD <-  DATA .... " + RESET + Back.RESET)
         data = json.load(url)
     for target in data:
-        name = target["name"]
+        name = target["code"]
         submit = target["can_submit_report"]
         logo = target["logo"]
         colour = target["colour"]
@@ -137,7 +138,7 @@ def intigriti():
         data = json.load(url)
 
     for target in data:
-        name = target["name"]
+        name = target["handle"]
         submit = target["companySustainable"]
         logo = target["logoId"]
         colour = "#0000ff"
@@ -170,7 +171,7 @@ def yeswehack():
         data = json.load(url)
 
     for target in data:
-        name = target["business_unit"]["name"]
+        name = target["business_unit"]["slug"]
         submit = target["business_unit"]["already_activate_product"]
         logo = target["business_unit"]["logo"]["url"]
         program_slug = target["slug"]
@@ -178,7 +179,9 @@ def yeswehack():
         target_information = {"platform": "YESWEHACK", "name": name, "submit": submit,
                               "logo": logo, "color": colour, "program_url": "https://yeswehack.com/programs/" + program_slug, "scope": []}
         for scope in target["scopes"]:
-            target_information["scope"].append(scope["scope"])
+            if scope["scope_type"] == "web-application":
+                if scope["scope"] != None:
+                    target_information["scope"].append(scope["scope"])
 
         dict_list.append(target_information)
     if len(dict_list) > 1:
@@ -494,18 +497,12 @@ def update(json_data: dict, platform: str, info="", out_info=""):
         conn.commit()
         if check:
             for i in info:
-                if "Github" in i:
-                    pass
-                else:
-                    send_update_notification(
-                        ID, platform=platform, info=i, msg=SCOPE_UPDATE_TITLE)
+                send_update_notification(
+                    ID, platform=platform, info=i, msg=SCOPE_UPDATE_TITLE)
 
             for o in out_info:
-                if "Github" in o:
-                    pass
-                else:
-                    send_update_notification(
-                        ID, platform=platform, info=o, msg=OUT_OF_SCOPE_UPDATE)
+                send_update_notification(
+                    ID, platform=platform, info=o, msg=OUT_OF_SCOPE_UPDATE)
             return True
 
     elif platform == "BUGCROWD":
@@ -578,7 +575,7 @@ def compare(json_data: dict, db_data, platform):
         info = []
         out_info = []
         in_olds = db_data["in-scope"]
-        out_olds = [s.strip() for s in db_data["out-of-scope"]]
+        out_olds = db_data["out-of-scope"]
         if str(json_data["in-scope"]) != str(db_data["in-scope"]) or str(json_data["out-of-scope"]) != str(db_data["out-of-scope"]):
             for ins in json_data["in-scope"]:
                 if str(ins).strip() not in in_olds:
@@ -586,7 +583,7 @@ def compare(json_data: dict, db_data, platform):
                 else:
                     continue
             for oos in json_data["out-of-scope"]:
-                if str(oos).strip() not in out_olds:
+                if str(oos) not in out_olds:
                     out_info.append(str(oos).strip())
             update(json_data=json_data, platform="HACKERONE",
                    info=info, out_info=out_info)
@@ -598,8 +595,6 @@ def compare(json_data: dict, db_data, platform):
             for ins in json_data["scopes"]:
                 if str(ins).strip() not in in_olds:
                     info.append(str(ins).strip())
-                else:
-                    continue
             update(json_data=json_data, platform="BUGCROWD", info=info)
 
     elif platform == "INTIGRITI":
@@ -609,8 +604,6 @@ def compare(json_data: dict, db_data, platform):
             for ins in json_data["scope"]:
                 if str(ins).strip() not in in_olds:
                     info.append(str(ins).strip())
-                else:
-                    continue
             update(json_data=json_data, platform="INTIGRITI", info=info)
     elif platform == "YESWEHACK":
         info = []
@@ -620,13 +613,12 @@ def compare(json_data: dict, db_data, platform):
             for ins in json_data["scope"]:
                 if str(ins).strip() not in in_olds:
                     info.append(str(ins).strip())
-                else:
-                    continue
-
             update(json_data=json_data, platform="YESWEHACK", info=info)
 
 
 def send_update_notification(ID, platform, info="", msg=" SCOPE UPDATED "):
+    if SEND_NOTIFICATION != "True":
+        return ""
     data = get_db_data_by_id(id=ID, platform=platform)
     if platform == "HACKERONE":
         name = data["name"]
@@ -706,6 +698,8 @@ def telegram(URL):
 
 
 def send_new_target_notification(json_data):
+    if SEND_NOTIFICATION != "True":
+        return ""
     platform = json_data["platform"]
     if platform == "HACKERONE":
         name = json_data["name"]
@@ -835,4 +829,5 @@ check_db = True
 while True:
     main(checkdb=check_db)
     check_db = False
+    print(" SLEEP START ")
     time.sleep(3600)
